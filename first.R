@@ -16,34 +16,28 @@ make_landscape <- function(n = 2000, smoothing_factor = 6,
     stop("smoothing_factor must be an integer >= 1")
   }
   if (smoothing_factor == 1) {
-    vals <- sample(1:max_value, size = n, replace = TRUE)
+    vals <- runif(n, 0, max_value)
     return(vals)
   }
-  vals <- numeric(n)
-  current <- 1
-  vals[current] <- sample(1:max_value, size = 1)
-  while (current < n) {
-    run <- sample(seq(1, 2*smoothing_factor, by = 1), size = 1)
-    new_pick <- min(n, current + run)
-    vals[new_pick] <- sample(1:max_value, size = 1)
-    places_between_exist <- current + 1 < new_pick
-    if (places_between_exist) {
-      places_between <- (current+1):(new_pick - 1)
-      slope <- (vals[new_pick] - vals[current]) / (new_pick - current)
-      vals[places_between] <- round(
-        vals[current] + slope * (places_between - current),
-        0
-      )
-    }
-  current <- new_pick
-  }
+  to_pick <- round(n / smoothing_factor, 0)
+  xvals <- c(1, sort(sample(1:n, size = to_pick)), n + 1)
+  start_y <- runif(1, 0, max_value)
+  yvals <- c(start_y, runif(to_pick, 0, max_value), start_y)
+  vals <- approx(
+    x = xvals, 
+    y = yvals, 
+    xout = 1:(n+1)
+  )
+  vals <- vals$y[-(n+1)]
+  move <- sample(2:(n-1), size = 1)
+  vals <- c(vals[move:n], vals[1:(move - 1)])
   vals
 }
 
 df <-
   data.frame(
     n = 1:200,
-    v = make_landscape(n = 200, smoothing_factor = 5)
+    v = make_landscape(n = 200, smoothing_factor = 10)
   )
 df %>% 
   ggplot(aes(x = n, y = v)) +
@@ -59,8 +53,8 @@ solve <- function(heuristic, landscape, start = 1) {
   while (TRUE) {
     try <- steps %% 3 + 1
     possibility <- ifelse(
-      current + heuristic[try] %% length(landscape) == 0,
-      200,
+      (current + heuristic[try]) %% length(landscape) == 0,
+      length(landscape),
       (current + heuristic[try]) %% length(landscape)
     )
     if (val[possibility] > best) {
@@ -140,27 +134,7 @@ all_ranks <- function(k = 3, l = 12, n = 200, factors = 1:10,
   results
 }
 
-results <-
-  all_ranks(
-    k = 3, l = 12, n = 200,
-    factors = 1:2,
-    all_starts = FALSE,
-    seed = 3030,
-    trace = 100
-  )
 
-hist(results[[2]]$rating)
-
-results_3_12_200_1to10_3030 <-
-  all_ranks(
-    k = 3, l = 12, n = 200,
-    factors = 1:10,
-    all_starts = FALSE,
-    seed = 3030,
-    trace = 500
-  )
-
-hist(results_3_12_200_1to10_3030[[3]]$rating)
 
 all_try <- function(team, landscape, start) {
   val <- landscape
@@ -198,16 +172,20 @@ solve_tournament <- function(team, landscape) {
         members_to_try <- c(members_to_try, i)
       }
     }
-    res <- all_try(team[members_to_try, ], landscape, current)
-    for (i in 1:length(members_to_try)) {
-      member <- members_to_try[i]
-      previous_proposals[[member]] <- res$proposals[i]
-    }
-    steps <- steps + res$steps
-    if (res$solution == current) {
+    if (length(members_to_try) > 0) {
+      res <- all_try(team[members_to_try, , drop = FALSE], landscape, current)
+      for (i in 1:length(members_to_try)) {
+        member <- members_to_try[i]
+        previous_proposals[[member]] <- res$proposals[i]
+      }
+      steps <- steps + res$steps
+      if (res$solution == current) {
+        solving <- FALSE
+      }
+      current <- res$solution
+    } else {
       solving <- FALSE
     }
-    current <- res$solution
     counter <- counter + 1
   }
   list(
@@ -216,10 +194,149 @@ solve_tournament <- function(team, landscape) {
   )
 }
 
-solve_tournament(
-  team = res$ranked[1:9, ],
-  landscape = make_landscape(
-    n = 2000, smoothing_factor = 4, 
-    max_value = 100, seed = NULL
-    )
-)
+comparison <- function(
+  sims = 100,
+  seed = NULL,
+  expert_size = 9,
+  expert_limit = 9,
+  random_size = 9,
+  set
+) {
+  mean_diffs <- numeric(length(set))
+  sd_diffs <- numeric(length(set))
+  factors <- as.numeric(names(set))
+  for (i in 1:length(set)) {
+    solvers = set[[i]]
+    expert_pool <- solvers$ranked[1:expert_limit, , drop = FALSE]
+    differences <- numeric(sims)
+    for (m in 1:sims) {
+      land <- make_landscape(
+        n = 200, smoothing_factor = factors[i], 
+        max_value = 100, seed = NULL
+      )
+      rows_to_pick <- sample(1:nrow(expert_pool), expert_size)
+      experts <- expert_pool[rows_to_pick, , drop = FALSE]
+      expert_sol <- solve_tournament(
+        team = experts,
+        landscape = land
+      )
+      rows_to_pick <- sample(1:nrow(solvers$ranked), random_size)
+      randoms <- solvers$ranked[rows_to_pick, , drop = FALSE]
+      random_sol <- solve_tournament(
+        team = randoms,
+        landscape = land
+      )
+      differences[m] <- land[random_sol$solution] - land[expert_sol$solution]
+    }
+    mean_diffs[i] <- mean(differences)
+    sd_diffs[i] <- sd(differences)
+  }
+  data.frame(
+    factor = factors,
+    mean_diff = mean_diffs,
+    sd_diff = sd_diffs
+  )
+}
+  
+results_3_12_200_1to10_3030 <-
+  all_ranks(
+    k = 3, l = 12, n = 200,
+    factors = 1:10,
+    all_starts = FALSE,
+    seed = 3030,
+    trace = 500
+  )
+
+results_3_12_200_11to20_3030 <-
+  all_ranks(
+    k = 3, l = 12, n = 200,
+    factors = 11:20,
+    all_starts = FALSE,
+    seed = 3030,
+    trace = 500
+  )
+
+results_3_12_200_1to20 <-
+  c(
+    results_3_12_200_1to10_3030,
+    results_3_12_200_11to20_3030
+  )
+
+sims <- 2500
+comparison(set = results_3_12_200_1to20, sims = sims, 
+           expert_size = 9, expert_limit = 30) %>% 
+  ggplot(aes(x = factor, y = mean_diff)) +
+  geom_ribbon(aes(ymin = mean_diff - 2 * sd_diff/sqrt(sims), 
+                  ymax = mean_diff + 2 * sd_diff/sqrt(sims)),
+              fill = "grey70", alpha = 0.5) +
+  geom_line(aes(y = mean_diff)) +
+  geom_hline(yintercept = 0) +
+  scale_x_continuous(breaks = 1:20) +
+  labs(x = "mean length of a run",
+       y = "mean of differences (expert - other)")
+
+
+results_3_36_200_1to20_3030 <-
+  all_ranks(
+    k = 3, l = 36, n = 200,
+    factors = 1:20,
+    all_starts = FALSE,
+    seed = 3030,
+    trace = 50
+  )
+save(results_3_36_200_1to20_3030, file = "data/results_3_36_200_1to20_3030.rda")
+
+get_bounded <- function(bound = 12, lst) {
+  mat <- lst$ranked
+  bounded <- rep(TRUE, times = nrow(mat))
+  for (j in 1:ncol(mat)) {
+    bounded <- bounded & (mat[, j] <= bound)
+  }
+  list(
+    ranked = mat[bounded, , drop = FALSE],
+    rating = lst$rating[bounded]
+  )
+}
+
+get_bounded_all <- function(bound = 12, lst) {
+  results <- vector(mode = "list", length = length(lst))
+  names(results) <- names(lst)
+  for (i in 1:length(lst)) {
+    results[[i]] <- get_bounded(bound = bound, lst[[i]])
+  }
+  results
+}
+
+stuff <- get_bounded_all(bound = 24, lst = results_3_36_200_1to20_3030)
+
+make_graph <- function(sims = 2500,
+                       set,
+                       expert_size = 9,
+                       expert_limit = 9,
+                       random_size = 9,
+                       #k = 3,
+                       l = 12,
+                       seed = NULL) {
+  lst <- get_bounded_all(bound = l, lst = set)
+  comparison(
+    sims = sims,
+    seed = seed,
+    expert_size = expert_size,
+    expert_limit = expert_limit,
+    random_size = random_size,
+    set = lst
+  ) %>% 
+    ggplot(aes(x = factor, y = mean_diff)) +
+    geom_ribbon(aes(ymin = mean_diff - 2 * sd_diff/sqrt(sims), 
+                    ymax = mean_diff + 2 * sd_diff/sqrt(sims)),
+                fill = "grey70", alpha = 0.5) +
+    geom_line(aes(y = mean_diff)) +
+    geom_hline(yintercept = 0) +
+    scale_x_continuous(breaks = 1:20) +
+    labs(x = "mean length of a run",
+         y = "mean of differences (expert - other)",
+         title = paste0("Heuristic bound is ", l, "."))
+}
+
+make_graph(sims = 500, set = results_3_36_200_1to20_3030,
+           expert_size = 9, expert_limit = 30)
