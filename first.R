@@ -1,11 +1,13 @@
 library(gtools)
 library(tidyverse)
 
+## Making a set of heuristics ----
+
 make_heuristics <- function(k = 3, l = 12) {
   gtools::permutations(n = l, r = k)
 }
 
-heuristics <- make_heuristics()
+## Making an Epistemic Lanscape ----
 
 make_landscape <- function(n = 2000, smoothing_factor = 6, 
                            max_value = 100, seed = NULL) {
@@ -34,16 +36,10 @@ make_landscape <- function(n = 2000, smoothing_factor = 6,
   vals
 }
 
-df <-
-  data.frame(
-    n = 1:200,
-    v = make_landscape(n = 200, smoothing_factor = 10)
-  )
-df %>% 
-  ggplot(aes(x = n, y = v)) +
-  geom_line()
+## Solving a Landscape ----
 
 solve <- function(heuristic, landscape, start = 1) {
+  h_length <- length(heuristic)
   val <- landscape
   current <- start
   best <- val[current]
@@ -51,7 +47,7 @@ solve <- function(heuristic, landscape, start = 1) {
   strikes <- 0
   steps <- 0
   while (TRUE) {
-    try <- steps %% 3 + 1
+    try <- steps %% h_length + 1
     possibility <- ifelse(
       (current + heuristic[try]) %% length(landscape) == 0,
       length(landscape),
@@ -63,14 +59,14 @@ solve <- function(heuristic, landscape, start = 1) {
       strikes <- 0
     } else {
       strikes <- strikes + 1
-      if (strikes == 3) break
+      if (strikes == h_length) break
     }
     steps <- steps + 1
   }
   return(list(solution = current, steps = steps + 1, val = val[current]))
 }
 
-solve(c(1, 5, 25), df$v, 190)
+## Testing Individual Heuristics ----
 
 rank_heuristics <- function(sims = 1000, seed = NULL,
                             heuristics,
@@ -108,9 +104,6 @@ rank_heuristics <- function(sims = 1000, seed = NULL,
   ))
 }
 
-# res <- rank_heuristics(heuristics = heuristics, trace = 50, smoothing_factor = 4)
-# res$ranked[1:10, ]
-# res$rating[1:10]
 
 all_ranks <- function(k = 3, l = 12, n = 200, factors = 1:10,
                       sims = 1000, all_starts = FALSE,
@@ -134,7 +127,7 @@ all_ranks <- function(k = 3, l = 12, n = 200, factors = 1:10,
   results
 }
 
-
+## Team Solving Effort ----
 
 all_try <- function(team, landscape, start) {
   val <- landscape
@@ -194,6 +187,8 @@ solve_tournament <- function(team, landscape) {
   )
 }
 
+## Comparing Teams ----
+
 comparison <- function(
   sims = 100,
   seed = NULL,
@@ -237,44 +232,9 @@ comparison <- function(
     sd_diff = sd_diffs
   )
 }
-  
-results_3_12_200_1to10_3030 <-
-  all_ranks(
-    k = 3, l = 12, n = 200,
-    factors = 1:10,
-    all_starts = FALSE,
-    seed = 3030,
-    trace = 500
-  )
 
-results_3_12_200_11to20_3030 <-
-  all_ranks(
-    k = 3, l = 12, n = 200,
-    factors = 11:20,
-    all_starts = FALSE,
-    seed = 3030,
-    trace = 500
-  )
 
-results_3_12_200_1to20 <-
-  c(
-    results_3_12_200_1to10_3030,
-    results_3_12_200_11to20_3030
-  )
-
-sims <- 2500
-comparison(set = results_3_12_200_1to20, sims = sims, 
-           expert_size = 9, expert_limit = 30) %>% 
-  ggplot(aes(x = factor, y = mean_diff)) +
-  geom_ribbon(aes(ymin = mean_diff - 2 * sd_diff/sqrt(sims), 
-                  ymax = mean_diff + 2 * sd_diff/sqrt(sims)),
-              fill = "grey70", alpha = 0.5) +
-  geom_line(aes(y = mean_diff)) +
-  geom_hline(yintercept = 0) +
-  scale_x_continuous(breaks = 1:20) +
-  labs(x = "mean length of a run",
-       y = "mean of differences (expert - other)")
-
+## Make and Save Heuristic Ranks ----
 
 results_3_36_200_1to20_3030 <-
   all_ranks(
@@ -284,7 +244,11 @@ results_3_36_200_1to20_3030 <-
     seed = 3030,
     trace = 50
   )
+
 save(results_3_36_200_1to20_3030, file = "data/results_3_36_200_1to20_3030.rda")
+
+
+## Quick Graphs ----
 
 get_bounded <- function(bound = 12, lst) {
   mat <- lst$ranked
@@ -306,8 +270,6 @@ get_bounded_all <- function(bound = 12, lst) {
   }
   results
 }
-
-stuff <- get_bounded_all(bound = 24, lst = results_3_36_200_1to20_3030)
 
 make_graph <- function(sims = 2500,
                        set,
@@ -338,5 +300,78 @@ make_graph <- function(sims = 2500,
          title = paste0("Heuristic bound is ", l, "."))
 }
 
+## example of use:
 make_graph(sims = 500, set = results_3_36_200_1to20_3030,
-           expert_size = 9, expert_limit = 30)
+           expert_size = 9, expert_limit = 9, l = 12)
+
+## Stars?
+
+results_6_12_200_1to20_3030 <-
+  all_ranks(
+    k = 6, l = 12, n = 200,
+    factors = 6,
+    sims = 100,
+    all_starts = FALSE,
+    seed = 3030,
+    trace = 2
+  )
+results_6_12_200_6_3030 <- results_6_12_200_1to20_3030
+save(results_6_12_200_6_3030, file = "data/results_6_12_200_6_3030.rda")
+
+hist(get_bounded(bound = 12, results_3_36_200_1to20_3030[["6"]])$rating)
+
+comparison2 <- function(
+  sims = 100,
+  seed = NULL,
+  expert_size = 9,
+  expert_limit = 9,
+  random_size = 9,
+  expert_set,
+  random_set
+) {
+  mean_diffs <- numeric(length(expert_set))
+  sd_diffs <- numeric(length(expert_set))
+  factors <- as.numeric(names(expert_set))
+  for (i in 1:length(expert_set)) {
+    expert_solvers = expert_set[[i]]
+    random_solvers <- random_set[[i]]
+    expert_pool <- expert_solvers$ranked[1:expert_limit, , drop = FALSE]
+    differences <- numeric(sims)
+    for (m in 1:sims) {
+      land <- make_landscape(
+        n = 200, smoothing_factor = factors[i], 
+        max_value = 100, seed = NULL
+      )
+      rows_to_pick <- sample(1:nrow(expert_pool), expert_size)
+      experts <- expert_pool[rows_to_pick, , drop = FALSE]
+      expert_sol <- solve_tournament(
+        team = experts,
+        landscape = land
+      )
+      rows_to_pick <- sample(1:nrow(random_solvers$ranked), random_size)
+      randoms <- random_solvers$ranked[rows_to_pick, , drop = FALSE]
+      random_sol <- solve_tournament(
+        team = randoms,
+        landscape = land
+      )
+      differences[m] <- land[random_sol$solution] - land[expert_sol$solution]
+    }
+    mean_diffs[i] <- mean(differences)
+    sd_diffs[i] <- sd(differences)
+  }
+  data.frame(
+    factor = factors,
+    mean_diff = mean_diffs,
+    sd_diff = sd_diffs
+  )
+}
+
+comparison2(
+  sims = 2500,
+  seed = NULL,
+  expert_size = 2,
+  expert_limit = 665280,
+  random_size = 2,
+  expert_set = results_6_12_200_6_3030,
+  random_set = list(get_bounded(bound = 12, results_3_36_200_1to20_3030[[6]]))
+)
