@@ -202,6 +202,7 @@ comparison <- function(
   factors <- as.numeric(names(set))
   for (i in 1:length(set)) {
     solvers = set[[i]]
+    print(length(solvers$rating))
     expert_pool <- solvers$ranked[1:expert_limit, , drop = FALSE]
     differences <- numeric(sims)
     for (m in 1:sims) {
@@ -304,7 +305,7 @@ make_graph <- function(sims = 2500,
 make_graph(sims = 500, set = results_3_36_200_1to20_3030,
            expert_size = 9, expert_limit = 9, l = 12)
 
-## Stars?
+## Stars? ----
 
 results_6_12_200_1to20_3030 <-
   all_ranks(
@@ -375,3 +376,137 @@ comparison2(
   expert_set = results_6_12_200_6_3030,
   random_set = list(get_bounded(bound = 12, results_3_36_200_1to20_3030[[6]]))
 )
+
+## Pool as Sample ----
+
+## What if the actual pool in only a random subset of possible heurustics?
+get_sample <- function(set, prop) {
+  samp <- vector(mode = "list", length = length(set))
+  names(samp) <- names(set)
+  for (i in 1:length(set)) {
+    pop <- set[[i]]
+    m <- length(pop$rating)
+    to_pick <- sample(1:m, size = floor(prop * m))
+    samp[[i]] <- list(
+      ranked = pop$ranked[to_pick, ],
+      rating = pop$rating[to_pick]
+    )
+  }
+  samp
+}
+
+samps <- get_sample(results_3_36_200_1to20_3030, 0.3)
+
+make_graph(sims = 2500, set = samps,
+           expert_size = 9, expert_limit = 9, l = 10)
+
+all_ranks_samp <- function(k = 3, l = 12, n = 200, factors = 1:10,
+                      sims = 1000, all_starts = FALSE,
+                      seed = NULL, trace = FALSE,
+                      sample_size) {
+  if (!is.null(seed)) {
+    set.seed(seed)
+  }
+  heuristics <- make_heuristics(k = k, l = l)
+  to_pick <- sample(1:nrow(heuristics), size = sample_size)
+  heuristics <- heuristics[to_pick, ]
+  results <- vector(mode = "list", length = length(factors))
+  names(results) <- as.character(factors)
+  for (factor in factors) {
+    cat("Working on smoothing factor", factor, "... \n")
+    results[[as.character(factor)]] <- rank_heuristics(
+      sims = sims,
+      heuristics = heuristics,
+      n = n,
+      smoothing_factor = factor,
+      trace = trace
+    )
+  }
+  results
+}
+
+res <- all_ranks_samp(
+  k = 6, l = 12, n = 200, factors = 1:20,
+  sims = 1000, seed = 3030, trace = 100,
+  sample_size = 100
+)
+
+make_graph_2 <- function(sims = 2500,
+                       expert_set,
+                       random_set,
+                       expert_size = 9,
+                       expert_limit = 9,
+                       random_size = 9,
+                       #k = 3,
+                       l = 12,
+                       seed = NULL) {
+  expert_lst <- get_bounded_all(bound = l, lst = expert_set)
+  random_lst <- get_bounded_all(bound = l, lst = random_set)
+  comparison2(
+    sims = sims,
+    seed = seed,
+    expert_size = expert_size,
+    expert_limit = expert_limit,
+    random_size = random_size,
+    expert_set = expert_lst,
+    random_set = random_lst
+  ) %>% 
+    ggplot(aes(x = factor, y = mean_diff)) +
+    geom_ribbon(aes(ymin = mean_diff - 2 * sd_diff/sqrt(sims), 
+                    ymax = mean_diff + 2 * sd_diff/sqrt(sims)),
+                fill = "grey70", alpha = 0.5) +
+    geom_line(aes(y = mean_diff)) +
+    geom_hline(yintercept = 0) +
+    scale_x_continuous(breaks = 1:20) +
+    labs(x = "mean length of a run",
+         y = "mean of differences (expert - other)",
+         title = paste0("Heuristic bound is ", l, "."))
+}
+
+make_graph_2(
+  sims = 2500,
+  expert_set = res,
+  random_set = results_3_36_200_1to20_3030,
+  expert_size = 5,
+  expert_limit = 5,
+  random_size = 10,
+  l = 12
+)
+
+by_row_max <- function(mat) {
+  lst <- vector(mode = "list", length = ncol(mat))
+  for (j in 1:ncol(mat)) {
+    lst[[j]] <- mat[, j]
+  }
+  maxes <- do.call("pmax", args = lst)
+  print("call done")
+  ord <- order(maxes)
+  print("done!")
+  list(
+    maxes <- maxes[ord],
+    mat =  mat[ord, ]
+  )
+}
+
+by_row_max(permutations(n = 5, r = 3))
+
+sample_from_heuristics <- function(heuristics, prop = 0.01) {
+  results <-  by_row_max(heuristics)
+  print("sorted")
+  heuristics <- results$mat
+  maxes <- results$maxes
+  min_max <- maxes[1]
+  max_max <- maxes[length(maxes)]
+  cols <- ncol(heuristics)
+  sampled <- matrix(0, nrow = 0, ncol = cols)
+  for (m in min_max:max_max) {
+    print(m)
+    h <- heuristics[maxes == m, ]
+    n <- nrow(h)
+    pick <- ifelse(prop * n <= 500, 1:n, sample(1:n, floor(prop * n)))
+    sampled <- rbind(sampled, heuristics[pick, ])
+  }
+  sampled
+}
+
+res <- sample_from_heuristics(permutations(36, 6), prop = 0.001)
