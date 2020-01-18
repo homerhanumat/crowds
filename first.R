@@ -7,7 +7,7 @@ make_heuristics <- function(k = 3, l = 12) {
   gtools::permutations(n = l, r = k)
 }
 
-## Making an Epistemic Lanscape ----
+## Making an Epistemic Landscape ----
 
 make_landscape <- function(n = 2000, smoothing_factor = 6, 
                            max_value = 100, seed = NULL) {
