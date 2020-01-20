@@ -16,7 +16,8 @@ function(input, output) {
     possibility = 1,
     best = 0,
     strikes = 0,
-    steps = 0
+    steps = 0,
+    simulations = NULL
   )
 
   observeEvent(input$go, {
@@ -68,6 +69,32 @@ function(input, output) {
       hide("try")
     }
   })
+  
+  observeEvent(input$go2, {
+    reps <- input$sims
+    simulations <- numeric(reps)
+    heuristic <- str_split(
+      input$heuristic2, pattern = ",\\s*") %>% 
+      unlist() %>% 
+      as.numeric()
+    withProgress(message = "Simulating ...", 
+                 min = 1, max = input$sims, {
+      for (i in 1:reps) {
+        landscape <- make_landscape(
+          n = settings$options,
+          smoothing_factor = input$smoothing_factor2,
+          max_value = settings$max_value
+        )
+        simulations[i] <- solve_landscape(
+          heuristic = heuristic,
+          landscape = landscape
+        )$val
+        incProgress(1/reps * 100, detail = paste(ceiling(i/reps * 100), "% done"))
+      }
+    })
+    
+    rv$simulations <- simulations
+  })
 
   output$landscape_plot <- renderPlot({
     if (!is.null(rv$landscape)) {
@@ -103,14 +130,50 @@ function(input, output) {
   output$process <- renderTable({
     rv$steps
     if (!is.null(rv$landscape)) {
-      data.frame(
-        moved = as.integer(isolate(rv$moved)),
-        trying = as.integer(isolate(rv$possibility)),
-        `best so far` = isolate(rv$best),
-        strikes = isolate(as.integer(rv$strikes)),
-        stuck = !isolate(rv$solving)
+      results <- c(
+        moved = as.character(isolate(rv$moved)),
+        trying = as.character(isolate(rv$possibility)),
+        `best so far` = as.character(round(isolate(rv$best), 3)),
+        strikes = as.character(isolate(as.integer(rv$strikes))),
+        stuck = as.character(!isolate(rv$solving))
+        )
+      result_names <- c(
+        "moved", "trying", "best so far", "strikes", "stuck?"
       )
+      df <- data.frame(results)
+      names(df) <- ""
+      row.names(df) <- result_names
+      df
+    }
+  }, rownames = TRUE)
+  
+  output$simsplot <- renderPlot({
+    if (!is.null(rv$simulations)) {
+      data.frame(value = rv$simulations) %>% 
+        ggplot(aes(x = value)) +
+        geom_density(fill = "burlywood") +
+        geom_rug() +
+        labs(x = "value at stopping solution")
     }
   })
+  
+  output$simresults <- renderTable({
+    if (!is.null(rv$simulations)) {
+      sims <- round(rv$simulations, 3)
+      results <- c(
+        as.character(min(sims)),
+        as.character(median(sims)),
+        as.character(mean(sims)),
+        as.character(max(sims))
+      )
+      result_names <- c(
+        "minimum", "median", "mean", "maximum"
+      )
+      df <- data.frame(results)
+      names(df) <- ""
+      row.names(df) <- result_names
+      df
+    }
+  }, rownames = TRUE)
   
 }

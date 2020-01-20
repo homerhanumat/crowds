@@ -3,56 +3,171 @@ library(shinyjs)
 
 source("globals.R")
 
+## header ----
 header <- dashboardHeader(
   title = "Creepy Solver"
 )
 
+## sidebar ----
 sidebar <- dashboardSidebar(
-  textInput(
-    inputId = "heuristic",
-    label = "Solver Moves (separate by commas)",
-    value = "1,10,20"
-  ),
-  HTML(paste0(
-    "<p style='margin-left: 10px; margin-right: 1opx;'>",
-    "The solver tries approaches beyond the curren t",
-    "best solution, moving forward by one of the ",
-    "values you provide above.</p>"
-    )
-  ),
-  numericInput(
-    inputId = "smoothing_factor",
-    label = "Smoothing Factor",
-    value = 10,
-    min = 1,
-    max = settings$max_smoothness
-  ),
-  HTML(paste0(
-    "<p style='margin-left: 10px; margin-right: 10px;'>",
-    "The bigger the smoothing factor, the ",
-    "less 'choppy' the epistemic landscape wiil be.</p>"
-    )
-  ),
-  br(),
-  actionButton(
-    inputId = "go",
-    label = "Make New Landscape"
-  ),
-  actionButton(
-    inputId = "try",
-    label = "Try Another Option"
+  sidebarMenu(
+    menuItem("Solving", tabName = "solving"),
+    menuItem("Ability", tabName = "ability")
   )
 )
 
+## body ----
 body <- dashboardBody(
-  fluidRow(
-    plotOutput("landscape_plot")
-  ),
-  fluidRow(
-    tableOutput("process")
-  )
-)
+  tabItems(
+    tabItem(
+      tabName = "solving",
+      fluidRow(
+        box(
+          solidHeader = TRUE,
+          collapsible = TRUE,
+          status = "primary",
+          width = 9,
+          title = "Inputs",
+          column(
+            width = 7,
+            textInput(
+              inputId = "heuristic",
+              label = "Solver Moves (separate by commas)",
+              value = "1,10,20"
+            ),
+            HTML(paste0(
+              "<p>",
+              "The solver tries approaches beyond the current ",
+              "best solution, moving forward by one of the ",
+              "values you provide above.</p>"
+            ))
+          ),
+          column(
+            width = 5,
+            numericInput(
+              inputId = "smoothing_factor",
+              label = "Smoothing Factor",
+              value = 10,
+              min = 1,
+              max = settings$max_smoothness
+            ),
+            HTML(paste0(
+              "<p>",
+              "The bigger the smoothing factor, the ",
+              "less 'choppy' the epistemic landscape wiil be.</p>"
+            ))
+          )
+        ),
+        box(
+          solidHeader = TRUE,
+          status = "primary",
+          width = 3,
+          title = "Actions",
+          actionButton(
+            inputId = "go",
+            label = HTML("Make New <br>Landscape")
+          ),
+          br(), br(),
+          actionButton(
+            inputId = "try",
+            label = HTML("Try Another<br>Option")
+          )
+        )
+      ),
+      fluidRow(
+        box(
+          width = 12,
+          status = "primary",
+          solidHeader = TRUE,
+          title = "Epistemic Landscape and Search Status",
+          column(
+            width = 9,
+            plotOutput("landscape_plot")
+          ),
+          column(
+            width = 3,
+            tableOutput("process")
+          )
+        ) # end box
+      ) # end row
+    ), # end  solving tab item
+    tabItem(
+      tabName = "ability",
+      fluidRow(
+        box(
+          solidHeader = TRUE,
+          status = "primary",
+          width = 9,
+          title = "Inputs",
+          column(
+            width = 7,
+            textInput(
+              inputId = "heuristic2",
+              label = "Solver Moves (separate by commas)",
+              value = "1,10,20"
+            ),
+            HTML(paste0(
+              "<p>",
+              "The solver tries approaches beyond the current ",
+              "best solution, moving forward by one of the ",
+              "values you provide above.</p>"
+            ))
+          ),
+          column(
+            width = 5,
+            numericInput(
+              inputId = "smoothing_factor2",
+              label = "Smoothing Factor",
+              value = 10,
+              min = 1,
+              max = settings$max_smoothness
+            ),
+            HTML(paste0(
+              "<p>",
+              "The bigger the smoothing factor, the ",
+              "less 'choppy' the epistemic landscape wiil be.</p>"
+            ))
+          )
+        ),
+        box(
+          numericInput(
+            inputId = "sims",
+            label = HTML("Number of<br>Simulations<br>(max 100000)"),
+            value = 1000,
+            min = 1,
+            max = 100000
+          ),
+          br(),
+          solidHeader = TRUE,
+          status = "primary",
+          width = 3,
+          title = "Actions",
+          actionButton(
+            inputId = "go2",
+            label = HTML("Simulate")
+          )
+        ) # end box
+      ), # end fluid row
+      fluidRow(
+        box(
+          width = 12,
+          title = "Simulation Results",
+          column(
+            width = 3,
+            tableOutput("simresults")
+          ),
+          column(
+            width = 9,
+            plotOutput("simsplot")
+          )
+        )
+      )
+    )  # end ability tab item
+  ) # end tab items
+  
+) # end body
 
+## page ----
 dashboardPage(
   useShinyjs(),
   header = header,

@@ -33,6 +33,8 @@ make_landscape <- function(n = 2000, smoothing_factor = 6,
   vals <- vals$y[-(n+1)]
   move <- sample(2:(n-1), size = 1)
   vals <- c(vals[move:n], vals[1:(move - 1)])
+  ## now scale
+  vals <- vals / max(yvals) * max_value
   vals
 }
 
