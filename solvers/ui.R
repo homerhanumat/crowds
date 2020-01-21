@@ -5,20 +5,22 @@ source("globals.R")
 
 ## header ----
 header <- dashboardHeader(
-  title = "Creepy Solver"
+  title = "Creepy Solvers"
 )
 
 ## sidebar ----
 sidebar <- dashboardSidebar(
   sidebarMenu(
     menuItem("Solving", tabName = "solving"),
-    menuItem("Ability", tabName = "ability")
+    menuItem("Ability", tabName = "ability"),
+    menuItem("Teams", tabName = "teams")
   )
 )
 
 ## body ----
 body <- dashboardBody(
   tabItems(
+    ## tab item "solving" ----
     tabItem(
       tabName = "solving",
       fluidRow(
@@ -91,6 +93,7 @@ body <- dashboardBody(
         ) # end box
       ) # end row
     ), # end  solving tab item
+    ## tab item "ability" ----
     tabItem(
       tabName = "ability",
       fluidRow(
@@ -162,7 +165,65 @@ body <- dashboardBody(
           )
         )
       )
-    )  # end ability tab item
+    ),  # end ability tab item
+    ## tab item "teams"
+    tabItem(
+      tabName = "teams",
+      fluidRow(
+        box(
+          width = 9,
+          title = "Inputs",
+          status = "primary",
+          column(
+            width = 3,
+            numericInput(inputId = "expert_size", label = "Expert Team Size",
+                         min = 1, value = 6, step = 1),
+            numericInput(inputId = "random_size", label = "Random Team Size",
+                         min = 1, value = 6, step = 1)
+          ),
+          column(
+            width = 9,
+            sliderInput(
+              inputId = "move_limit",
+              label = "Maximum Heuristic",
+              value = 12,
+              min = 1, max = 30,
+              step = 1
+            ),
+            sliderInput(
+              inputId = "sf_range",
+              label = "Smoothing-Factor Range",
+              value = c(1, 20),
+              min = 1, max = 20,
+              step = 1
+            )
+          )
+        ),
+        box(
+          width = 3,
+          title = "Simulation",
+          status = "primary",
+          numericInput(
+            inputId = "team_sims",
+            label = HTML("Number of<br>Simulations<br>(max 10000)"),
+            value = 100,
+            min = 1,
+            max = 10000
+          ),
+          actionButton(
+            inputId = "simulate_teams",
+            label = "Simulate"
+          )
+        )
+      ),
+      fluidRow(
+        box(
+          width = 12,
+          title = "Mean Difference in Score (Expert - Random) vs. Smoothing-Factor",
+          plotOutput("team_results")
+        )
+      )
+    )
   ) # end tab items
   
 ) # end body

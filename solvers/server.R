@@ -1,13 +1,18 @@
+## packages and globals ----
+
 library(shiny)
 library(shinyjs)
 library(ggrepel)
 
 source("globals.R")
+load("data/results_3_36_200_1to20_3030.rda")
 
+## server function ----
 function(input, output) {
   
   hide("try")
   
+  ## reactive values ----
   rv <- reactiveValues(
     landscape = NULL,
     solving = FALSE,
@@ -17,9 +22,11 @@ function(input, output) {
     best = 0,
     strikes = 0,
     steps = 0,
-    simulations = NULL
+    simulations = NULL,
+    team_results = NULL
   )
 
+  ## observers ----
   observeEvent(input$go, {
     rv$landscape <-
       make_landscape(
@@ -95,7 +102,25 @@ function(input, output) {
     
     rv$simulations <- simulations
   })
+  
+  observeEvent(input$simulate_teams, {
+    lst <- get_bounded_all(bound = input$move_limit, lst = results_3_36_200_1to20_3030)
+    lower <- isolate(input$sf_range[1])
+    upper <- isolate(input$sf_range[2])
+    rv$team_results <- withProgress(
+      message = "Simulating ...", 
+      min = lower, max = upper, 
+      comparison(
+        sims = input$team_sims,
+        seed = NULL,
+        expert_size = input$expert_size,
+        expert_limit = input$move_limit,
+        random_size = input$random_size,
+        set = lst)
+      )
+  })
 
+  ## output ----
   output$landscape_plot <- renderPlot({
     if (!is.null(rv$landscape)) {
       landscape <- rv$landscape
@@ -175,5 +200,22 @@ function(input, output) {
       df
     }
   }, rownames = TRUE)
+  
+  output$team_results <- renderPlot({
+    if (!is.null(rv$team_results)) {
+      lower <- isolate(input$sf_range[1])
+      upper <- isolate(input$sf_range[2])
+      sims <- isolate(input$team_sims)
+      ggplot(rv$team_results, aes(x = factor, y = mean_diff)) +
+        geom_ribbon(aes(ymin = mean_diff - 2 * sd_diff/sqrt(sims), 
+                        ymax = mean_diff + 2 * sd_diff/sqrt(sims)),
+                    fill = "grey70", alpha = 0.5) +
+        geom_line(aes(y = mean_diff)) +
+        geom_hline(yintercept = 0) +
+        scale_x_continuous(breaks = lower:upper) +
+        labs(x = "smoothing factor",
+             y = "mean of differences (experts - randoms)")
+    }
+  })
   
 }
