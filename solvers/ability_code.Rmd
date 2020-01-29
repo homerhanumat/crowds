@@ -1,0 +1,132 @@
+```{r}
+## ability ui ----
+fluidRow(
+  column(
+    width = 6,
+    wellPanel(
+      textInput(
+        inputId = "ability_heuristic",
+        label = "Solver Moves (separate by commas)",
+        value = "1,10,20"
+      ),
+      numericInput(
+        inputId = "ability_smoothing_factor",
+        label = "Smoothing Factor",
+        value = 10,
+        min = 1,
+        max = settings$max_smoothness
+      )
+    )
+  ),
+  column(
+    width = 6,
+    wellPanel(
+      numericInput(
+        inputId = "ability_sims",
+        label = HTML("Number of<br>Simulations<br>(max 100000)"),
+        value = 1000,
+        min = 1,
+        max = 100000
+      ),
+      br(),
+      actionButton(
+        inputId = "ability_go",
+        label = HTML("Simulate")
+      )
+    )
+  )
+)
+hidden(
+  div(
+    id = "ability_outputs",
+    fluidRow(
+      column(
+        width = 3,
+        tableOutput("ability_simresults")
+      ),
+      column(
+        width = 9,
+        plotOutput("ability_simsplot")
+      )
+    )
+  )
+)
+
+
+## ability reactive values ----
+
+rv_ability <- reactiveValues(
+  simulations = NULL
+)
+
+## ability observers ----
+
+observeEvent(input$ability_go, {
+  show("ability_outputs")
+  reps <- input$ability_sims
+  simulations <- numeric(reps)
+  heuristic <- str_split(
+    input$ability_heuristic,
+    pattern = ",\\s*"
+  ) %>%
+    unlist() %>%
+    as.numeric()
+  withProgress(
+    message = "Simulating ...",
+    min = 1,
+    max = input$ability_sims,
+    {
+      for (i in 1:reps) {
+        landscape <- make_landscape(
+          n = settings$options,
+          smoothing_factor = input$ability_smoothing_factor,
+          max_value = settings$max_value
+        )
+        simulations[i] <- solve_landscape(
+          heuristic = heuristic,
+          landscape = landscape
+        )$val
+        incProgress(1 / reps * 100, detail = paste(ceiling(i / reps * 100), "% done"))
+      }
+    }
+  )
+
+  rv_ability$simulations <- simulations
+})
+
+
+## ability outputs ----
+
+output$ability_simsplot <- renderPlot({
+  if (!is.null(rv_ability$simulations)) {
+    data.frame(value = rv_ability$simulations) %>%
+      ggplot(aes(x = value)) +
+      geom_density(fill = "burlywood") +
+      geom_rug() +
+      labs(x = "value at stopping solution")
+  }
+})
+
+output$ability_simresults <- renderTable(
+  {
+    if (!is.null(rv_ability$simulations)) {
+      sims <- round(rv_ability$simulations, 3)
+      results <- c(
+        as.character(min(sims)),
+        as.character(median(sims)),
+        as.character(mean(sims)),
+        as.character(max(sims))
+      )
+      result_names <- c(
+        "minimum", "median", "mean", "maximum"
+      )
+      df <- data.frame(results)
+      names(df) <- ""
+      row.names(df) <- result_names
+      df
+    }
+  },
+  rownames = TRUE
+)
+```
+

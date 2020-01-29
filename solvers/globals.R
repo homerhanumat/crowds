@@ -1,8 +1,11 @@
 library(gtools)
 library(tidyverse)
 
-## Settings
+## Settings ----
 
+## options = number of x-values in the epistemic landscape
+## max_smoothness = maximum smoothness factor in input widgets
+## max_value = maximum y-value in an epistemic landscape (min = 0, always)
 settings <- list(
   options = 200,
   max_smoothness = 100,
@@ -11,6 +14,8 @@ settings <- list(
 
 ## Making a set of heuristics ----
 
+## construct all permutation sof l things, taken k at a time
+## (currently not needed in main paper)
 make_heuristics <- function(k = 3, l = 12) {
   gtools::permutations(n = l, r = k)
 }
@@ -57,7 +62,9 @@ solve_landscape <- function(heuristic, landscape, start = 1) {
   strikes <- 0
   steps <- 0
   while (TRUE) {
+    # set the heuristics the solver will use in this iteration:
     try <- steps %% h_length + 1
+    # tentative new option:
     possibility <- ifelse(
       (current + heuristic[try]) %% length(landscape) == 0,
       length(landscape),
@@ -78,6 +85,8 @@ solve_landscape <- function(heuristic, landscape, start = 1) {
 
 ## Team Solving Effort ----
 
+## a team (or some subset of as indicated by value of parameter team)
+## each work from the current best option:
 all_try <- function(team, member_numbers, landscape, start) {
   val <- landscape
   solutions <- numeric(length(member_numbers))
@@ -98,6 +107,7 @@ all_try <- function(team, member_numbers, landscape, start) {
   )
 }
 
+## "tournament-style" team-solving procedure:
 solve_tournament <- function(team, landscape) {
   current <- 1
   steps <- 0
@@ -130,6 +140,11 @@ solve_tournament <- function(team, landscape) {
 
 ## Comparing Teams ----
 
+## sims = number of simulations to perform
+## expert_size = number of member sin the team of experts
+## expert_limit:  team of expert_size experts is drawn randomly 
+## from the 1st, 2md, ..., expert_limit-th highest-ranking experts
+## set = list of ranked solvers, at various smoothing levels
 comparison <- function(
   sims = 100,
   seed = NULL,
@@ -176,6 +191,8 @@ comparison <- function(
 }
 
 ## For Team-Sim Graph ----
+
+## (currently not used in app)
 
 get_bounded <- function(bound = 12, lst) {
   mat <- lst$ranked

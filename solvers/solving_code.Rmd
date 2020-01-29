@@ -1,0 +1,183 @@
+```{r}
+## solving ui ----
+fluidRow(
+  useShinyjs(rmd = TRUE),
+  column(
+    width = 6,
+    wellPanel(
+      textInput(
+        inputId = "solving_heuristic",
+        label = "Solver Moves (separate by commas)",
+        value = "1,10,20"
+      ),
+      numericInput(
+        inputId = "solving_smoothing_factor",
+        label = "Smoothing Factor",
+        value = 10,
+        min = 1,
+        max = settings$max_smoothness
+      )
+    )
+  ),
+  column(
+    width = 6,
+    wellPanel(
+      actionButton(
+        inputId = "solving_make_landscape",
+        label = HTML("Make New <br>Landscape")
+      ),
+      br(), br(),
+      hidden(
+        actionButton(
+          inputId = "solving_move",
+          label = HTML("Try Another<br>Option")
+        )
+      ) # end hidden
+    )
+  )
+)
+
+hidden(div(
+  id = "solving_outputs",
+  fluidRow(
+    column(
+      width = 9,
+      plotOutput("solving_landscape_plot")
+    ),
+    column(
+      width = 3,
+      tableOutput("solving_process")
+    )
+  )
+))
+
+
+## solving reactive values ----
+rv_solving <- reactiveValues(
+  landscape = NULL,
+  solving = FALSE,
+  moved = NA,
+  current = 1,
+  possibility = 1,
+  best = 0,
+  strikes = 0,
+  steps = 0,
+  simulations = NULL,
+  team_results = NULL
+)
+
+## solving observers ----
+observeEvent(input$solving_make_landscape, {
+  rv_solving$landscape <-
+    make_landscape(
+      n = settings$options,
+      smoothing_factor = input$solving_smoothing_factor,
+      max_value = settings$max_value
+    )
+  rv_solving$current <- 1
+  rv_solving$best <- 0
+  rv_solving$strikes <- 0
+  rv_solving$steps <- 0
+  rv_solving$solving <- TRUE
+  rv_solving$moved <- NA
+  rv_solving$possibility <- 1
+  show("solving_move")
+  show("solving_outputs")
+})
+
+observeEvent(input$solving_move, {
+  current <- rv_solving$current
+  strikes <- rv_solving$strikes
+  steps <- rv_solving$steps
+  best <- rv_solving$best
+  landscape <- rv_solving$landscape
+  heuristic <- str_split(
+    input$solving_heuristic,
+    pattern = ",\\s*"
+  ) %>%
+    unlist() %>%
+    as.numeric()
+  h_length <- length(heuristic)
+  try <- steps %% h_length + 1
+  rv_solving$moved <- heuristic[try]
+  possibility <- ifelse(
+    (current + heuristic[try]) %% length(landscape) == 0,
+    length(landscape),
+    (current + heuristic[try]) %% length(landscape)
+  )
+  rv_solving$possibility <- possibility
+  if (landscape[possibility] > best) {
+    rv_solving$current <- possibility
+    rv_solving$best <- landscape[possibility]
+    rv_solving$strikes <- 0
+  } else {
+    rv_solving$strikes <- strikes + 1
+  }
+  rv_solving$steps <- steps + 1
+  if (rv_solving$strikes == h_length) {
+    rv_solving$solving <- FALSE
+    hide("solving_move")
+  }
+})
+
+## solving outputs ----
+output$solving_landscape_plot <- renderPlot({
+  if (!is.null(rv_solving$landscape)) {
+    landscape <- rv_solving$landscape
+    df <- data.frame(
+      approach = 1:length(landscape),
+      value = landscape
+    )
+    present <- data.frame(
+      x = c(rv_solving$current, rv_solving$possibility),
+      y = c(
+        landscape[rv_solving$current],
+        landscape[rv_solving$possibility]
+      ),
+      point = c("current best", "trying")
+    )
+    p <-
+      ggplot(df, aes(x = approach, y = value)) +
+      geom_line() +
+      geom_point(
+        data = present,
+        aes(
+          x = x, y = y,
+          color = point
+        ),
+        size = 3
+      ) +
+      scale_color_manual(values = c("blue", "red")) +
+      geom_label_repel(
+        data = present,
+        mapping = aes(x = x, y = y, label = point),
+        force = 10
+      ) +
+      theme(legend.position = "none")
+    print(p)
+  }
+})
+
+output$solving_process <- renderTable(
+  {
+    rv_solving$steps
+    if (!is.null(rv_solving$landscape)) {
+      results <- c(
+        moved = as.character(isolate(rv_solving$moved)),
+        trying = as.character(isolate(rv_solving$possibility)),
+        `best so far` = as.character(round(isolate(rv_solving$best), 3)),
+        strikes = as.character(isolate(as.integer(rv_solving$strikes))),
+        stuck = as.character(!isolate(rv_solving$solving))
+      )
+      result_names <- c(
+        "moved", "trying", "best so far", "strikes", "stuck?"
+      )
+      df <- data.frame(results)
+      names(df) <- ""
+      row.names(df) <- result_names
+      df
+    }
+  },
+  rownames = TRUE
+)
+```

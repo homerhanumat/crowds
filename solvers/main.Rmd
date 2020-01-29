@@ -1,0 +1,55 @@
+---
+title: "Wisdom of Crowds?"
+author: "Homer White"
+date: "1/28/2020"
+output:
+  rmdformats::readthedown:
+    highlight: kate
+    toc_depth: 2
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+library(shinyjs)
+library(ggrepel)
+source("globals.R")
+load("data/results_3_36_200_1to20_3030.rda")
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+
+## Solving
+
+Some text here.
+
+```{r solving_code, child = "solving_code.Rmd"}
+
+```
+
+
+And more text!
+
+
+## Ability
+
+Still more text.
+
+```{r ability_code, child = "ability_code.Rmd"}
+
+```
+
+
+
+And even more ...
+
+## Teams
+
+More text.
+
+```{r teams_code, child = "teams_code.Rmd"}
+
+```
+
+
+
+
