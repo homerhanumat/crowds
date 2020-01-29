@@ -78,11 +78,11 @@ solve_landscape <- function(heuristic, landscape, start = 1) {
 
 ## Team Solving Effort ----
 
-all_try <- function(team, landscape, start) {
+all_try <- function(team, member_numbers, landscape, start) {
   val <- landscape
-  solutions <- numeric(nrow(team))
+  solutions <- numeric(length(member_numbers))
   steps <- 0
-  for(i in 1:nrow(team)) {
+  for(i in 1:length(member_numbers)) {
     member <- team[i, ]
     res <- solve_landscape(member, landscape, start)
     solutions[i] <- res$solution
@@ -90,36 +90,28 @@ all_try <- function(team, landscape, start) {
   }
   highest <- max(val[solutions])
   best_solution <- solutions[val[solutions] == highest][1]
+  proposer <- member_numbers[val[solutions] == highest][1]
   list(
     solution = best_solution,
     steps = steps,
-    proposals = solutions
+    proposals = proposer
   )
 }
 
 solve_tournament <- function(team, landscape) {
-  previous_proposals <- vector(mode = "list", length = nrow(team))
-  for (i in 1:length(previous_proposals)) {
-    previous_proposals[[i]] <- numeric()
-  }
   current <- 1
   steps <- 0
   solving <- TRUE
   debug_limit <- Inf
   counter <- 0
+  previous_proposer <- NA
   while (solving  & counter <= debug_limit) {
-    members_to_try <- numeric()
-    for (i in 1:nrow(team)) {
-      if (!(current %in% previous_proposals[[i]])) {
-        members_to_try <- c(members_to_try, i)
-      }
-    }
+    members_to_try <- setdiff(1:nrow(team), previous_proposer)
     if (length(members_to_try) > 0) {
-      res <- all_try(team[members_to_try, , drop = FALSE], landscape, current)
-      for (i in 1:length(members_to_try)) {
-        member <- members_to_try[i]
-        previous_proposals[[member]] <- res$proposals[i]
-      }
+      res <- all_try(team = team[members_to_try, , drop = FALSE], 
+                     member_numbers = members_to_try,
+                     landscape = landscape, 
+                     start = current)
       steps <- steps + res$steps
       if (res$solution == current) {
         solving <- FALSE
