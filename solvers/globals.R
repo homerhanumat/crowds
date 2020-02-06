@@ -9,7 +9,9 @@ library(tidyverse)
 settings <- list(
   options = 200,
   max_smoothness = 100,
-  max_value = 100
+  max_value = 100,
+  ability_sim_max = 100000,
+  teams_sim_max = 10000
 )
 
 ## Making a set of heuristics ----

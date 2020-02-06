@@ -23,10 +23,12 @@ fluidRow(
     wellPanel(
       numericInput(
         inputId = "ability_sims",
-        label = HTML("Number of<br>Simulations<br>(max 100000)"),
+        label = HTML(
+          glue::glue("Number of<br>Simulations<br>(max {settings$ability_sim_max})")
+          ),
         value = 1000,
         min = 1,
-        max = 100000
+        max = settings$ability_sim_max
       ),
       br(),
       actionButton(
@@ -61,9 +63,15 @@ rv_ability <- reactiveValues(
 
 ## ability observers ----
 
+
 observeEvent(input$ability_go, {
   show("ability_outputs")
-  reps <- input$ability_sims
+  if (input$ability_sims > settings$ability_sim_max) {
+    showNotification(
+      glue::glue("Performing our max of {settings$ability_sim_max} simulations ...")
+      )
+  }
+  reps <- min(input$ability_sims, settings$ability_sim_max)
   simulations <- numeric(reps)
   heuristic <- str_split(
     input$ability_heuristic,

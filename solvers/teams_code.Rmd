@@ -41,7 +41,7 @@ fluidRow(
         label = HTML("Number of<br>Simulations<br>(max 10000)"),
         value = 1000,
         min = 1,
-        max = 10000
+        max = settings$teams_sim_max
       ),
       actionButton(
         inputId = "teams_simulate",
@@ -72,6 +72,13 @@ rv_teams <- reactiveValues(
 
 observeEvent(input$teams_simulate, {
   show("teams_outputs")
+  if (input$teams_sims > settings$teams_sim_max) {
+    showNotification(
+      glue::glue(
+        "Performing our max of {settings$teams_sim_max} simulations ..."
+      )
+    )
+  }
   lst <- get_bounded_all(
     bound = input$teams_move_limit,
     lst = results_3_36_200_1to20_3030
@@ -82,7 +89,7 @@ observeEvent(input$teams_simulate, {
     message = "Simulating ...",
     min = lower, max = upper,
     comparison(
-      sims = input$teams_sims,
+      sims = min(input$teams_sims, settings$teams_sim_max),
       seed = NULL,
       expert_size = input$teams_expert_size,
       expert_limit = input$teams_expert_size,
