@@ -24,13 +24,13 @@ fluidRow(
     wellPanel(
       actionButton(
         inputId = "solving_make_landscape",
-        label = HTML("Make New <br>Landscape")
+        label = HTML("Make a <br>Landscape")
       ),
       br(), br(),
       hidden(
         actionButton(
           inputId = "solving_move",
-          label = HTML("Try Another Option")
+          label = "Begin Solving"
         )
       ) # end hidden
     )
@@ -75,7 +75,7 @@ observeEvent(input$solving_make_landscape, {
       max_value = settings$max_value
     )
   rv_solving$current <- 1
-  rv_solving$best <- 0
+  rv_solving$best <- rv_solving$landscape[1]
   rv_solving$strikes <- 0
   rv_solving$steps <- 0
   rv_solving$solving <- TRUE
@@ -83,9 +83,15 @@ observeEvent(input$solving_make_landscape, {
   rv_solving$possibility <- 1
   show("solving_move")
   show("solving_outputs")
+  updateActionButton(session, "solving_make_landscape", 
+                     label = HTML("Make New<br>Lanscape"))
+  updateActionButton(session, "solving_move", label = "Begin Solving")
 })
 
 observeEvent(input$solving_move, {
+  if (rv_solving$steps > 0) {
+    updateActionButton(session, "solving_move", label = "Continue")
+  }
   current <- rv_solving$current
   strikes <- rv_solving$strikes
   steps <- rv_solving$steps
@@ -118,6 +124,9 @@ observeEvent(input$solving_move, {
     rv_solving$solving <- FALSE
     hide("solving_move")
   }
+   if (rv_solving$steps > 0) {
+    updateActionButton(session, "solving_move", label = "Continue")
+  }
 })
 
 ## solving outputs ----
@@ -128,14 +137,25 @@ output$solving_landscape_plot <- renderPlot({
       approach = 1:length(landscape),
       value = landscape
     )
-    present <- data.frame(
+    if (rv_solving$steps == 0) {
+      present <- data.frame(
+        x = rv_solving$current,
+        y = landscape[rv_solving$current],
+        point = "beginning option"
+      )
+    } else {
+      present <- data.frame(
       x = c(rv_solving$current, rv_solving$possibility),
       y = c(
         landscape[rv_solving$current],
         landscape[rv_solving$possibility]
       ),
-      point = c("current best", "trying")
+      point = c("current best", "tried")
     )
+    }
+    if (!rv_solving$solving) {
+       present$point <- c("solution", "last try")
+    }
     p <-
       ggplot(df, aes(x = approach, y = value)) +
       geom_line() +
@@ -160,23 +180,42 @@ output$solving_landscape_plot <- renderPlot({
 
 output$solving_process <- renderTable(
   {
-    rv_solving$steps
-    if (!is.null(rv_solving$landscape)) {
-      results <- c(
-        moved = as.character(isolate(rv_solving$moved)),
-        trying = as.character(isolate(rv_solving$possibility)),
-        `best so far` = as.character(round(isolate(rv_solving$best), 3)),
-        strikes = as.character(isolate(as.integer(rv_solving$strikes))),
-        stuck = as.character(!isolate(rv_solving$solving))
-      )
+    req(rv_solving$landscape)
+    if (rv_solving$steps == 0) {
+      results <- isolate(c(
+        as.character(rv_solving$possibility),
+        as.character(round(rv_solving$landscape[rv_solving$possibility], 3))
+      ))
       result_names <- c(
-        "moved", "trying", "best so far", "strikes", "stuck?"
+        "beginning approach", "beginning value"
       )
+    } else if (rv_solving$solving) {
+      results <- isolate(c(
+          as.character(rv_solving$moved),
+          as.character(rv_solving$possibility),
+          as.character(round(rv_solving$best, 3)),
+          as.character(as.integer(rv_solving$strikes)),
+          as.character(!rv_solving$solving)
+      ))
+      result_names <- c(
+        "amount moved", "approach tried", "best value so far", "strikes", "stuck?"
+      )
+    } else {
+      results <- isolate(c(
+          as.character(rv_solving$moved),
+          as.character(rv_solving$possibility),
+          as.character(round(rv_solving$best, 3)),
+          as.character(as.integer(rv_solving$strikes)),
+          as.character(!rv_solving$solving)
+      ))
+      result_names <- c(
+        "amount moved", "final approach tried", "final solution", "strikes", "stuck?"
+      )
+    }
       df <- data.frame(results)
       names(df) <- ""
       row.names(df) <- result_names
       df
-    }
   },
   rownames = TRUE
 )
