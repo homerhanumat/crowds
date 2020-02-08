@@ -30,7 +30,7 @@ fluidRow(
       hidden(
         actionButton(
           inputId = "solving_move",
-          label = HTML("Try Another<br>Option")
+          label = HTML("Try Another Option")
         )
       ) # end hidden
     )
