@@ -11,7 +11,7 @@ single_text_input <- function(n, id_frag, label_frag, value) {
 ## teams ui ----
 fluidRow(
   column(
-    width = 3,
+    width = 6,
     wellPanel(
       numericInput(
         inputId = "teams_manual_random_size", label = "Random Team Size",
@@ -41,24 +41,25 @@ fluidRow(
         min = 1, max = 20,
         step = 1
       )
-    )
-  ),
-  column(
-    width = 3,
-    wellPanel(
-      numericInput(
-        inputId = "teams_manual_sims",
-        label = HTML("Number of<br>Simulations<br>(max 10000)"),
-        value = 1000,
-        min = 1,
-        max = settings$teams_sim_max
+    ),
+      column(
+        width = 6,
+        numericInput(
+          inputId = "teams_manual_sims",
+          label = HTML("Number of<br>Simulations<br>(max 10000)"),
+          value = 1000,
+          min = 1,
+          max = settings$teams_sim_max
+        )
       ),
-      actionButton(
-        inputId = "teams_manual_simulate",
-        label = "Simulate"
+      column(
+        width = 6,
+        actionButton(
+          inputId = "teams_manual_simulate",
+          label = "Simulate"
+        )
       )
     )
-  )
 )
 
 hidden(
@@ -85,12 +86,12 @@ observe({
   req(
     input$teams_manual_expert_size > 0,
     input[["teams_manual_member-1"]]
-    )
+  )
   size <- input$teams_manual_expert_size
-  
+
   ## for the dependencies:
   stuff <- lapply(1:size, function(n) input[[paste0("teams_manual_member-", n)]])
-  
+
   parse_one_input <- function(n) {
     str_split(
       input[[paste0("teams_manual_member-", n)]],
@@ -99,7 +100,7 @@ observe({
       unlist() %>%
       as.numeric()
   }
-     rv_teams_manual$profiles <-
+  rv_teams_manual$profiles <-
     lapply(
       1:size,
       parse_one_input
@@ -135,7 +136,7 @@ observeEvent(input$teams_manual_simulate, {
       manual_experts = rv_teams_manual$profiles
     )
   )
-  #rv_teams_manual$profiles <- NULL
+  # rv_teams_manual$profiles <- NULL
 })
 
 
@@ -150,26 +151,27 @@ output$teams_manual_members <- renderUI({
   }
   isolate({
     if (!is.null(rv_teams_manual$profiles)) {
-     profiles <- rv_teams_manual$profiles
-     for (i in 1:min(size, length(profiles))) {
-       values[[i]] <-
-         str_c(profiles[[i]], collapse = ", ")
-     }
+      profiles <- rv_teams_manual$profiles
+      for (i in 1:min(size, length(profiles))) {
+        values[[i]] <-
+          str_c(profiles[[i]], collapse = ", ")
+      }
     } else {
-     for (i in 1:size) {
-       values[[i]] <- "1, 10, 20"
-     }
-   }
-  tagList(
-    list = purrr::pmap(
-      list(n = 1:size,
-           value = values), 
-      single_text_input,
-      id_frag = "teams_manual_member", label_frag = "Member"
+      for (i in 1:size) {
+        values[[i]] <- "1, 10, 20"
+      }
+    }
+    tagList(
+      list = purrr::pmap(
+        list(
+          n = 1:size,
+          value = values
+        ),
+        single_text_input,
+        id_frag = "teams_manual_member", label_frag = "Member"
+      )
     )
-  )
   })
-   
 })
 
 
