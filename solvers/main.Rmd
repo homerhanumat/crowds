@@ -12,6 +12,9 @@ runtime: shiny
 ```{r setup, include=FALSE}
 library(shinyjs)
 library(ggrepel)
+library(plotly)
+library(purrr)
+library(stringr)
 source("globals.R")
 load("data/results_3_36_200_1to20_3030.rda")
 knitr::opts_chunk$set(echo = FALSE)
@@ -50,6 +53,14 @@ More text.
 
 ```
 
+## Hand-Picked Team
+
+Pick your own team to compete against teams of random three-move players!
+
+
+```{r teams_manual_code, child = "teams_manual_code.Rmd"}
+
+```
 
 
 

@@ -55,7 +55,7 @@ hidden(
   div(
     id = "teams_outputs",
     fluidRow(
-      plotOutput("teams_plot")
+      plotlyOutput("teams_plot")
     )
   )
 )
@@ -102,27 +102,21 @@ observeEvent(input$teams_simulate, {
 
 
 ## teams outputs ----
-output$teams_plot <- renderPlot({
-  if (!is.null(rv_teams$results)) {
+output$teams_plot <- renderPlotly({
+  req(rv_teams$results)
+  df <- rv_teams$results
+  isolate({
+    sims <- input$teams_sims
     lower <- isolate(input$teams_sf_range[1])
     upper <- isolate(input$teams_sf_range[2])
-    sims <- isolate(input$teams_sims)
-    ggplot(rv_teams$results, aes(x = factor, y = mean_diff)) +
-      geom_ribbon(aes(
-        ymin = mean_diff - 2 * sd_diff / sqrt(sims),
-        ymax = mean_diff + 2 * sd_diff / sqrt(sims)
-      ),
-      fill = "grey70", alpha = 0.5
-      ) +
-      geom_line(aes(y = mean_diff)) +
-      geom_hline(yintercept = 0) +
-      scale_x_continuous(breaks = lower:upper) +
-      labs(
-        x = "smoothing factor",
-        y = "mean of differences (experts - randoms)",
-        title = "Mean Difference in Score (Expert - Random) vs. Smoothing-Factor"
-      )
-  }
+  })
+  make_team_sim_graph(
+    df = df, sims = sims,
+    lower = lower,
+    upper = upper
+  )
 })
+
+### end
 ```
 

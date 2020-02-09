@@ -83,8 +83,9 @@ observeEvent(input$solving_make_landscape, {
   rv_solving$possibility <- 1
   show("solving_move")
   show("solving_outputs")
-  updateActionButton(session, "solving_make_landscape", 
-                     label = HTML("Make New<br>Lanscape"))
+  updateActionButton(session, "solving_make_landscape",
+    label = HTML("Make New<br>Lanscape")
+  )
   updateActionButton(session, "solving_move", label = "Begin Solving")
 })
 
@@ -124,7 +125,7 @@ observeEvent(input$solving_move, {
     rv_solving$solving <- FALSE
     hide("solving_move")
   }
-   if (rv_solving$steps > 0) {
+  if (rv_solving$steps > 0) {
     updateActionButton(session, "solving_move", label = "Continue")
   }
 })
@@ -145,16 +146,16 @@ output$solving_landscape_plot <- renderPlot({
       )
     } else {
       present <- data.frame(
-      x = c(rv_solving$current, rv_solving$possibility),
-      y = c(
-        landscape[rv_solving$current],
-        landscape[rv_solving$possibility]
-      ),
-      point = c("current best", "tried")
-    )
+        x = c(rv_solving$current, rv_solving$possibility),
+        y = c(
+          landscape[rv_solving$current],
+          landscape[rv_solving$possibility]
+        ),
+        point = c("current best", "tried")
+      )
     }
     if (!rv_solving$solving) {
-       present$point <- c("solution", "last try")
+      present$point <- c("solution", "last try")
     }
     p <-
       ggplot(df, aes(x = approach, y = value)) +
@@ -191,31 +192,31 @@ output$solving_process <- renderTable(
       )
     } else if (rv_solving$solving) {
       results <- isolate(c(
-          as.character(rv_solving$moved),
-          as.character(rv_solving$possibility),
-          as.character(round(rv_solving$best, 3)),
-          as.character(as.integer(rv_solving$strikes)),
-          as.character(!rv_solving$solving)
+        as.character(rv_solving$moved),
+        as.character(rv_solving$possibility),
+        as.character(round(rv_solving$best, 3)),
+        as.character(as.integer(rv_solving$strikes)),
+        as.character(!rv_solving$solving)
       ))
       result_names <- c(
         "amount moved", "approach tried", "best value so far", "strikes", "stuck?"
       )
     } else {
       results <- isolate(c(
-          as.character(rv_solving$moved),
-          as.character(rv_solving$possibility),
-          as.character(round(rv_solving$best, 3)),
-          as.character(as.integer(rv_solving$strikes)),
-          as.character(!rv_solving$solving)
+        as.character(rv_solving$moved),
+        as.character(rv_solving$possibility),
+        as.character(round(rv_solving$best, 3)),
+        as.character(as.integer(rv_solving$strikes)),
+        as.character(!rv_solving$solving)
       ))
       result_names <- c(
         "amount moved", "final approach tried", "final solution", "strikes", "stuck?"
       )
     }
-      df <- data.frame(results)
-      names(df) <- ""
-      row.names(df) <- result_names
-      df
+    df <- data.frame(results)
+    names(df) <- ""
+    row.names(df) <- result_names
+    df
   },
   rownames = TRUE
 )
