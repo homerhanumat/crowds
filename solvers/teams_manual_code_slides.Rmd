@@ -1,0 +1,205 @@
+```{r}
+## utility ----
+single_text_input <- function(n, id_frag, label_frag, value) {
+  textInput(
+    inputId = paste0(id_frag, "-", n),
+    label = paste0(label_frag, " ", n),
+    value = value
+  )
+}
+
+## teams ui ----
+div(
+  id = "teams_manual_controls",
+fluidRow(
+  column(
+    width = 6,
+    wellPanel(
+      numericInput(
+        inputId = "teams_manual_random_size", label = "Random Team Size",
+        min = 1, value = 2, step = 1
+      ),
+      numericInput(
+        inputId = "teams_manual_expert_size", label = "Expert Team Size",
+        min = 1, value = 1, step = 1
+      ),
+      uiOutput("teams_manual_members")
+    )
+  ),
+  column(
+    width = 6,
+    wellPanel(
+      sliderInput(
+        inputId = "teams_manual_move_limit",
+        label = "Random Player Max Heuristic",
+        value = 12,
+        min = 1, max = 36,
+        step = 1
+      ),
+      sliderInput(
+        inputId = "teams_manual_sf_range",
+        label = "Smoothing-Factor Range",
+        value = c(1, 20),
+        min = 1, max = 20,
+        step = 1
+      )
+    ),
+      column(
+        width = 6,
+        numericInput(
+          inputId = "teams_manual_sims",
+          label = HTML("Number of<br>Simulations<br>(max 10000)"),
+          value = 1000,
+          min = 1,
+          max = settings$teams_sim_max
+        )
+      ),
+      column(
+        width = 6,
+        actionButton(
+          inputId = "teams_manual_simulate",
+          label = "Simulate"
+        )
+      )
+    )
+)  # end controls div
+)
+
+hidden(
+  div(
+    id = "teams_manual_outputs",
+    fluidRow(
+      actionButton("teams_manual_repeat", "Start Over"),
+      plotlyOutput("teams_manual_plot")
+    )
+  )
+)
+
+
+## teams reactive values ----
+
+rv_teams_manual <- reactiveValues(
+  profiles = list("1, 10, 20"),
+  simulations = NULL,
+  results = NULL
+)
+
+## teams observers ----
+
+observe({
+  req(
+    input$teams_manual_expert_size > 0,
+    input[["teams_manual_member-1"]]
+  )
+  size <- input$teams_manual_expert_size
+
+  ## for the dependencies:
+  stuff <- lapply(1:size, function(n) input[[paste0("teams_manual_member-", n)]])
+
+  parse_one_input <- function(n) {
+    str_split(
+      input[[paste0("teams_manual_member-", n)]],
+      pattern = ",\\s*"
+    ) %>%
+      unlist() %>%
+      as.numeric()
+  }
+  rv_teams_manual$profiles <-
+    lapply(
+      1:size,
+      parse_one_input
+    )
+})
+
+observeEvent(input$teams_manual_repeat, {
+  hide("teams_manual_outputs")
+  show("teams_manual_controls")
+})
+
+observeEvent(input$teams_manual_simulate, {
+  hide("teams_manual_controls")
+  req(rv_teams_manual$profiles)
+  if (input$teams_manual_sims > settings$teams_sim_max) {
+    showNotification(
+      glue::glue(
+        "Performing our max of {settings$teams_sim_max} simulations ..."
+      )
+    )
+  }
+  lst <- get_bounded_all(
+    bound = input$teams_manual_move_limit,
+    lst = results_3_36_200_1to20_3030
+  )
+  lower <- isolate(input$teams_manual_sf_range[1])
+  upper <- isolate(input$teams_manual_sf_range[2])
+  rv_teams_manual$results <- withProgress(
+    message = "Simulating ...",
+    min = lower, max = upper,
+    expr = comparison(
+      sims = min(input$teams_manual_sims, settings$teams_sim_max),
+      seed = NULL,
+      expert_size = input$teams_manual_expert_size,
+      expert_limit = input$teams_manual_expert_size,
+      random_size = input$teams_manual_random_size,
+      set = lst,
+      manual_experts = rv_teams_manual$profiles
+    )
+  )
+  # rv_teams_manual$profiles <- NULL
+  show("teams_manual_outputs")
+})
+
+
+
+## teams outputs ----
+output$teams_manual_members <- renderUI({
+  req(input$teams_manual_expert_size > 0)
+  size <- input$teams_manual_expert_size
+  values <- vector(mode = "list", length = size)
+  for (i in 1:size) {
+    values[[i]] <- "1, 10, 20"
+  }
+  isolate({
+    if (!is.null(rv_teams_manual$profiles)) {
+      profiles <- rv_teams_manual$profiles
+      for (i in 1:min(size, length(profiles))) {
+        values[[i]] <-
+          str_c(profiles[[i]], collapse = ", ")
+      }
+    } else {
+      for (i in 1:size) {
+        values[[i]] <- "1, 10, 20"
+      }
+    }
+    tagList(
+      list = purrr::pmap(
+        list(
+          n = 1:size,
+          value = values
+        ),
+        single_text_input,
+        id_frag = "teams_manual_member", label_frag = "Member"
+      )
+    )
+  })
+})
+
+
+output$teams_manual_plot <- renderPlotly({
+  req(rv_teams_manual$results)
+  df <- rv_teams_manual$results
+  isolate({
+    sims <- input$teams_manual_sims
+    lower <- isolate(input$teams_manual_sf_range[1])
+    upper <- isolate(input$teams_manual_sf_range[2])
+  })
+  make_team_sim_graph(
+    df = df, sims = sims,
+    lower = lower,
+    upper = upper
+  )
+})
+
+### end
+```
+

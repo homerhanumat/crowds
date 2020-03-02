@@ -1,0 +1,73 @@
+---
+title: "Wisdom of Crowds?"
+author: "Homer White"
+date: "1/28/2020"
+output:
+  ioslides_presentation:
+    widescreen: true
+    css: slide_styles.css
+runtime: shiny
+
+---
+
+```{r setup, include=FALSE}
+library(shinyjs)
+library(ggrepel)
+library(plotly)
+library(gtools)
+library(tidyverse)
+library(glue)
+source("globals.R")
+load("data/results_3_36_200_1to20_3030.rda")
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+# Introduction
+
+
+
+# Creeping Solvers
+
+
+##
+
+
+```{r solving_code, child = "solving_code.Rmd"}
+
+```
+
+
+# Rating an Individual
+
+##
+
+```{r ability_code, child = "ability_code.Rmd"}
+
+```
+
+
+# Teams
+
+
+# Experts vs. Randoms
+
+##
+
+
+```{r teams_code, child = "teams_code_slides.Rmd"}
+
+```
+
+# Widening the Gap
+
+##
+
+
+```{r teams_manual_code, child = "teams_manual_code_slides.Rmd"}
+
+```
+
+# The Limits of Agent-Modeling
+
+
+

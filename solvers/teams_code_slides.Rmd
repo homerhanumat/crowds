@@ -1,0 +1,132 @@
+```{r}
+## teams ui ----
+div(
+  id = "teams_controls",
+fluidRow(
+  column(
+    width = 3,
+    wellPanel(
+      numericInput(
+        inputId = "teams_expert_size", label = "Expert Team Size",
+        min = 1, value = 9, step = 1
+      ),
+      numericInput(
+        inputId = "teams_random_size", label = "Random Team Size",
+        min = 1, value = 9, step = 1
+      )
+    )
+  ),
+  column(
+    width = 6,
+    wellPanel(
+      sliderInput(
+        inputId = "teams_move_limit",
+        label = "Maximum Heuristic",
+        value = 12,
+        min = 1, max = 36,
+        step = 1
+      ),
+      sliderInput(
+        inputId = "teams_sf_range",
+        label = "Smoothing-Factor Range",
+        value = c(1, 20),
+        min = 1, max = 20,
+        step = 1
+      )
+    )
+  ),
+  column(
+    width = 3,
+    wellPanel(
+      numericInput(
+        inputId = "teams_sims",
+        label = HTML("Number of<br>Simulations<br>(max 10000)"),
+        value = 1000,
+        min = 1,
+        max = settings$teams_sim_max
+      ),
+      actionButton(
+        inputId = "teams_simulate",
+        label = "Simulate"
+      )
+    )
+  )
+)
+) # end controls div
+
+hidden(
+  div(
+    id = "teams_outputs",
+    fluidRow(
+      actionButton("teams_repeat", "Start Over"),
+      plotlyOutput("teams_plot")
+    )
+  )
+)
+
+
+## teams reactive values ----
+
+rv_teams <- reactiveValues(
+  simulations = NULL,
+  results = NULL
+)
+
+## teams observers ----
+
+observeEvent(input$teams_repeat, {
+  show("teams_controls")
+  hide("teams_outputs")
+})
+
+observeEvent(input$teams_simulate, {
+  hide("teams_controls")
+  if (input$teams_sims > settings$teams_sim_max) {
+    showNotification(
+      glue::glue(
+        "Performing our max of {settings$teams_sim_max} simulations ..."
+      )
+    )
+  }
+  lst <- get_bounded_all(
+    bound = input$teams_move_limit,
+    lst = results_3_36_200_1to20_3030
+  )
+  lower <- isolate(input$teams_sf_range[1])
+  upper <- isolate(input$teams_sf_range[2])
+  rv_teams$results <- withProgress(
+    message = "Simulating ...",
+    min = lower, max = upper,
+    comparison(
+      sims = min(input$teams_sims, settings$teams_sim_max),
+      seed = NULL,
+      expert_size = input$teams_expert_size,
+      expert_limit = input$teams_expert_size,
+      random_size = input$teams_random_size,
+      set = lst
+    )
+  )
+  show("teams_outputs")
+})
+
+
+
+## teams outputs ----
+output$teams_plot <- renderPlotly({
+  req(rv_teams$results)
+  df <- rv_teams$results
+  isolate({
+    sims <- input$teams_sims
+    lower <- isolate(input$teams_sf_range[1])
+    upper <- isolate(input$teams_sf_range[2])
+  })
+  make_team_sim_graph(
+    df = df, sims = sims,
+    lower = lower,
+    upper = upper
+  )
+})
+
+### end
+```
+
